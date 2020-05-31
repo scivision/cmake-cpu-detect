@@ -41,6 +41,7 @@
 # ----------------
 #
 # HOST_ARCH
+#
 #==============================================================================
 
 function(GetHostCPUInfo)
@@ -73,6 +74,8 @@ endfunction(GetHostCPUInfo)
 
 function(_decode_intel)
 # https://en.wikichip.org/wiki/intel/cpuid
+
+set(HOST_ARCH)
 
 if(CPU_FAMILY EQUAL 6)
   if(CPU_MODEL EQUAL 133)
@@ -109,11 +112,7 @@ if(CPU_FAMILY EQUAL 6)
     set(HOST_ARCH "ivybridge")
   elseif(CPU_MODEL EQUAL 42 OR CPU_MODEL EQUAL 45)
     set(HOST_ARCH "sandybridge")
-  else()
-    message(STATUS "${CPU_VENDOR_ID} CPU (family ${CPU_FAMILY}, model ${CPU_MODEL}) is not known.")
   endif()
-else()
-  message(STATUS "${CPU_VENDOR_ID} CPU (family ${CPU_FAMILY}, model ${CPU_MODEL}) is not known.")
 endif()
 
 set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
@@ -125,10 +124,12 @@ function(DetectHostArch)
 
 GetHostCPUInfo()
 
-message(VERBOSE " ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
-
 if(CPU_VENDOR_ID STREQUAL "GenuineIntel")
   _decode_intel()
+endif()
+
+if(HOST_ARCH)
+  message(VERBOSE " detected ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
 else()
   message(STATUS "${CPU_VENDOR_ID} CPU (family ${CPU_FAMILY}, model ${CPU_MODEL}) is not known.")
 endif()

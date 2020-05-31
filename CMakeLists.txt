@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.12)
 project(cpu LANGUAGES C)
 
 include(cpu_detect.cmake)
