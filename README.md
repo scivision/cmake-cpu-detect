@@ -14,6 +14,7 @@ that reveals numerous flags for fine-grained CPU capabilities
 
 ## Result variables
 
+* `HOST_ARCH` for Intel CPUs, the generation name e.g. kabylake suitable for `-mtune=`
 * `HOST_FLAGS` more optimal tuning flags for host system. Sacrifices portability for performance.
 * `HAS_AVX` Using HOST_FLAGS, does compiler + cpu reveal AVX functionality
 * `HAS_AVX2` Using HOST_FLAGS, does compiler + cpu reveal AVX2 functionality

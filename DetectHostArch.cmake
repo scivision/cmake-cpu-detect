@@ -138,11 +138,12 @@ function(detect_host_arch)
 
 GetHostCPUInfo()
 
-message(VERBOSE "CPU: ${HOST_ARCH} ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
-
 if(CPU_VENDOR_ID STREQUAL "GenuineIntel")
   _decode_intel()
 endif()
+
+message(VERBOSE "CPU: ${HOST_ARCH} ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
+
 
 # --- capability check
 include(CheckCXXSourceCompiles)
@@ -163,6 +164,7 @@ endif()
 
 set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS})
 set(CMAKE_REQUIRED_INCLUDES)
+set(CMAKE_REQUIRED_LIBRARIES)
 
 set(_code "#include <immintrin.h>
 __m256i i;
@@ -173,6 +175,7 @@ set(_code "#include <immintrin.h>
 int main(void) {__m256 a = _mm256_setzero_ps(); return 0;}")
 check_cxx_source_compiles("${_code}" HAS_AVX)
 
+set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
 set(HOST_FLAGS ${HOST_FLAGS} PARENT_SCOPE)
 set(HAS_AVX2 ${HAS_AVX2} PARENT_SCOPE)
 set(HAS_AVX ${HAS_AVX} PARENT_SCOPE)
