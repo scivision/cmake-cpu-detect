@@ -18,6 +18,7 @@ message(STATUS "${CMAKE_CXX_COMPILER_ID} flags: ${HOST_FLAGS}")
 
 # -- example code
 
+if(HAS_AVX2)
 if(BUILD_TESTING)
   add_executable(avx2demo avx2.cpp)
   target_compile_options(avx2demo PRIVATE ${HOST_FLAGS})
@@ -25,3 +26,4 @@ if(BUILD_TESTING)
 
   add_test(NAME AVX2 COMMAND $<TARGET_FILE:avx2demo>)
 endif()
+endif(HAS_AVX2)
