@@ -3,32 +3,25 @@ name: ci
 on:
   push:
     paths:
-      - "**.txt"
+      - "**/CMakeLists.txt"
       - "**.cmake"
+      - "**.cpp"
+      - "**.c"
       - ".github/workflows/ci.yml"
 
 
 jobs:
 
-  linux:
-    runs-on: ubuntu-latest
+  demo:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
 
     - run: cmake -B build
+    - run: cmake --build build
 
-
-  macos:
-    runs-on: macos-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - run: cmake -B build
-
-
-  windows:
-    runs-on: windows-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - run: cmake -B build
+    - run: ctest --output-on-failure
+      working-directory: build

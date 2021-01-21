@@ -46,19 +46,32 @@
 
 function(GetHostCPUInfo)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  file(READ "/proc/cpuinfo" _cpuinfo)
-  string(REGEX REPLACE ".*vendor_id[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_VENDOR_ID "${_cpuinfo}")
-  string(REGEX REPLACE ".*cpu family[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_FAMILY "${_cpuinfo}")
-  string(REGEX REPLACE ".*model[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_MODEL "${_cpuinfo}")
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  exec_program("/usr/sbin/sysctl -n machdep.cpu.vendor" OUTPUT_VARIABLE CPU_VENDOR_ID)
-  exec_program("/usr/sbin/sysctl -n machdep.cpu.model"  OUTPUT_VARIABLE CPU_MODEL)
-  exec_program("/usr/sbin/sysctl -n machdep.cpu.family" OUTPUT_VARIABLE CPU_FAMILY)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  set(_file /proc/cpuinfo)
+  if(NOT EXISTS ${_file})
+    message(STATUS "Could not find ${_file}")
+    return()
+  endif()
+
+  file(READ ${_file} _info)
+  string(REGEX REPLACE ".*vendor_id[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_VENDOR_ID "${_info}")
+  string(REGEX REPLACE ".*cpu family[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_FAMILY "${_info}")
+  string(REGEX REPLACE ".*model[ \t]*:[ \t]+([a-zA-Z0-9_-]+).*" "\\1" CPU_MODEL "${_info}")
+elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  find_program(_sys NAMES sysctl PATHS /usr/sbin)
+  if(NOT _sys)
+    message(STATUS "Could not find ${_sys}")
+    return()
+  endif()
+
+  execute_process(COMMAND ${_sys} -n machdep.cpu.vendor OUTPUT_VARIABLE CPU_VENDOR_ID OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND ${_sys} -n machdep.cpu.model  OUTPUT_VARIABLE CPU_MODEL OUTPUT_STRIP_TRAILING_WHITESPACE)
+  execute_process(COMMAND ${_sys} -n machdep.cpu.family OUTPUT_VARIABLE CPU_FAMILY OUTPUT_STRIP_TRAILING_WHITESPACE)
+elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
   get_filename_component(CPU_VENDOR_ID "[HKEY_LOCAL_MACHINE\\Hardware\\Description\\System\\CentralProcessor\\0;VendorIdentifier]" NAME CACHE)
   get_filename_component(_cpu_id "[HKEY_LOCAL_MACHINE\\Hardware\\Description\\System\\CentralProcessor\\0;Identifier]" NAME CACHE)
-  message(TRACE " ${_cpu_id}")
+  message(TRACE "CPU ID: ${_cpu_id}")
+
   string(REGEX REPLACE ".* Family ([0-9]+) .*" "\\1" CPU_FAMILY "${_cpu_id}")
   string(REGEX REPLACE ".* Model ([0-9]+) .*" "\\1" CPU_MODEL "${_cpu_id}")
 else()
@@ -74,6 +87,7 @@ endfunction(GetHostCPUInfo)
 
 function(_decode_intel)
 # https://en.wikichip.org/wiki/intel/cpuid
+# https://software.intel.com/content/www/us/en/develop/documentation/cpp-compiler-developer-guide-and-reference/top/compiler-reference/compiler-options/compiler-option-details/code-generation-options/march.html
 
 set(HOST_ARCH)
 
@@ -99,7 +113,7 @@ if(CPU_FAMILY EQUAL 6)
   elseif(CPU_MODEL EQUAL 102)
     set(HOST_ARCH "cannonlake")
   elseif(CPU_MODEL EQUAL 142 OR CPU_MODEL EQUAL 158)
-    set(HOST_ARCH "kabylake")
+    set(HOST_ARCH "coffeelake")
   elseif(CPU_MODEL EQUAL 85)
     set(HOST_ARCH "skylake-avx512")
   elseif(CPU_MODEL EQUAL 78 OR CPU_MODEL EQUAL 94)
@@ -120,20 +134,43 @@ set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
 endfunction(_decode_intel)
 
 
-function(DetectHostArch)
+function(detect_host_arch)
 
 GetHostCPUInfo()
+
+message(VERBOSE "CPU: ${HOST_ARCH} ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
 
 if(CPU_VENDOR_ID STREQUAL "GenuineIntel")
   _decode_intel()
 endif()
 
-if(HOST_ARCH)
-  message(VERBOSE " detected ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
-else()
-  message(STATUS "${CPU_VENDOR_ID} CPU (family ${CPU_FAMILY}, model ${CPU_MODEL}) is not known.")
+# --- capability check
+include(CheckCXXSourceCompiles)
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+  set(HOST_FLAGS -march=native -mtune=native)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+  set(HOST_FLAGS -march=native -mtune=native)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL Intel)
+  if(WIN32)
+    set(HOST_FLAGS /QxHost /tune:${HOST_ARCH})
+  else(WIN32)
+    set(HOST_FLAGS -xHost -mtune=${HOST_ARCH})
+  endif()
 endif()
 
-set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
+set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS})
+set(CMAKE_REQUIRED_INCLUDES)
 
-endfunction(DetectHostArch)
+set(_code "#include <immintrin.h>
+__m256i i;
+int main(void) {__m256i a = _mm256_abs_epi16(i); return 0;}")
+check_cxx_source_compiles("${_code}" HAS_AVX2)
+
+set(_code "#include <immintrin.h>
+int main(void) {__m256 a = _mm256_setzero_ps(); return 0;}")
+check_cxx_source_compiles("${_code}" HAS_AVX)
+
+set(HOST_FLAGS ${HOST_FLAGS} PARENT_SCOPE)
+
+endfunction(detect_host_arch)
