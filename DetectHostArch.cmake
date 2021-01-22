@@ -76,6 +76,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL Windows)
   string(REGEX REPLACE ".* Model ([0-9]+) .*" "\\1" CPU_MODEL "${_cpu_id}")
 else()
   message(STATUS "Unknown operating system ${CMAKE_SYSTEM_NAME}")
+  return()
 endif()
 
 set(CPU_VENDOR_ID ${CPU_VENDOR_ID} PARENT_SCOPE)
@@ -129,7 +130,9 @@ if(CPU_FAMILY EQUAL 6)
   endif()
 endif()
 
-set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
+if(HOST_ARCH)
+  set(HOST_ARCH ${HOST_ARCH} CACHE STRING "CPU Architecture")
+endif()
 
 endfunction(_decode_intel)
 
@@ -140,12 +143,13 @@ GetHostCPUInfo()
 
 if(CPU_VENDOR_ID STREQUAL "GenuineIntel")
   _decode_intel()
+  message(VERBOSE "CPU: ${HOST_ARCH} ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
 endif()
 
-message(VERBOSE "CPU: ${HOST_ARCH} ${CPU_VENDOR_ID} ${CPU_FAMILY} ${CPU_MODEL}")
 
 
 # --- capability check
+include(CheckCSourceCompiles)
 include(CheckCXXSourceCompiles)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
@@ -175,9 +179,22 @@ set(_code "#include <immintrin.h>
 int main(void) {__m256 a = _mm256_setzero_ps(); return 0;}")
 check_cxx_source_compiles("${_code}" HAS_AVX)
 
+if(CMAKE_C_COMPILER_ID STREQUAL GNU)
+  set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS} -ftree-vectorize -mfpu=neon)
+endif()
+set(_code "#include \"arm_neon.h\"
+int main(void){float32x4_t v1 = { 1.0, 2.0, 3.0, 4.0 }; return 0;}")
+check_c_source_compiles("${_code}" HAS_NEON)
+if(HAS_NEON)
+  if(CMAKE_C_COMPILER_ID STREQUAL GNU)
+    list(APPEND HOST_FLAGS -mfpu=neon)
+  endif()
+endif()
+
 set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
 set(HOST_FLAGS ${HOST_FLAGS} PARENT_SCOPE)
-set(HAS_AVX2 ${HAS_AVX2} PARENT_SCOPE)
-set(HAS_AVX ${HAS_AVX} PARENT_SCOPE)
+set(HAS_AVX2 ${HAS_AVX2} CACHE BOOL "CPU has AVX2 instructions")
+set(HAS_AVX ${HAS_AVX} CACHE BOOL "CPU has AVX instructions")
+set(HAS_NEON ${HAS_NEON} CACHE BOOL "CPU has Neon instructions")
 
 endfunction(detect_host_arch)

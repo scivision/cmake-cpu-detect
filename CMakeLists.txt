@@ -4,9 +4,9 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Debug or Release")
 endif()
 
-project(CPU_AVX2
-  LANGUAGES CXX
-  DESCRIPTION "Demonstrates optimal compiler flags with AVX2, especially for Intel oneAPI")
+project(CPUflags
+  LANGUAGES C CXX
+  DESCRIPTION "Demonstrates optimal compiler flags.")
 
 include(CTest)
 
@@ -18,12 +18,20 @@ message(STATUS "${CMAKE_CXX_COMPILER_ID} flags: ${HOST_FLAGS}")
 
 # -- example code
 
-if(HAS_AVX2)
 if(BUILD_TESTING)
+if(HAS_AVX2)
   add_executable(avx2demo avx2.cpp)
   target_compile_options(avx2demo PRIVATE ${HOST_FLAGS})
   target_compile_features(avx2demo PRIVATE cxx_std_11)
 
   add_test(NAME AVX2 COMMAND $<TARGET_FILE:avx2demo>)
-endif()
 endif(HAS_AVX2)
+
+if(HAS_NEON)
+  add_executable(neon neon.c)
+  target_compile_options(neon PRIVATE ${HOST_FLAGS})
+
+  add_test(NAME NEON COMMAND $<TARGET_FILE:neon>)
+endif(HAS_NEON)
+
+endif(BUILD_TESTING)
