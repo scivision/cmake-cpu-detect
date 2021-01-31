@@ -3,11 +3,8 @@
 ![ci](https://github.com/scivision/cmake-cpu-detect/workflows/ci/badge.svg)
 
 These CMake functions detect the CPU arch for Intel CPUs on Linux, MacOS and Windows.
-Intel oneAPI `-xHost` or `/QxHost` is like `-march=native` on GCC or Clang.
-Better runtime performance can come from enabling the features of the Host CPU.
-
-However, compiler bugs can lead to runtime errors, so using `-march=native` everywhere can make problems.
-`-mtune=` hasn't made this problem for us.
+These can be useful for setting `-mtune` flag for Intel oneAPI.
+GCC can simply use `-mtune=native` instead.
 
 Related: [CMake project](https://github.com/miurahr/cmake-optimize-architecture-flag)
 that reveals numerous flags for fine-grained CPU capabilities
@@ -36,3 +33,15 @@ ctest
 
 To use in an actual project, copy DetectHostArch.cmake to your project directory.
 Then do like the part in `if(BUILD_TESTING)` in this project's CMakeLists.txt.
+
+## Intel oneAPI
+
+Intel oneAPI
+[`-xHost` or `/QxHost`](https://software.intel.com/content/www/us/en/develop/documentation/fortran-compiler-oneapi-dev-guide-and-reference/top/compiler-reference/compiler-options/compiler-option-details/code-generation-options/xhost-qxhost.html)
+is like `-march=native -mtune=native` on GCC or Clang.
+Better runtime performance can come from enabling the features of the host CPU.
+
+If you choose to not use `-xHost` or `/QxHost` then the
+[mtune](https://software.intel.com/content/www/us/en/develop/documentation/fortran-compiler-oneapi-dev-guide-and-reference/top/compiler-reference/compiler-options/compiler-option-details/code-generation-options/mtune-tune.html)
+option can be used.
+There is currently no `-mtune=native` for oneAPI, so this CMake CPU arch detection can help.
