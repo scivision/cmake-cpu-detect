@@ -23,5 +23,4 @@ jobs:
     - run: cmake -B build
     - run: cmake --build build
 
-    - run: ctest -C Debug --output-on-failure
-      working-directory: build
+    - run: ctest --test-dir build -C Debug --output-on-failure
