@@ -149,20 +149,17 @@ endif()
 
 
 # --- capability check
-include(CheckCSourceCompiles)
-include(CheckCXXSourceCompiles)
+include(CheckSourceCompiles)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+  set(HOST_FLAGS -march=native)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   set(HOST_FLAGS -march=native -mtune=native)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
-  set(HOST_FLAGS -march=native -mtune=native)
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL AppleClang)
-  set(HOST_FLAGS -march=native -mtune=native)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES Intel)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "^Intel")
   if(WIN32)
-    set(HOST_FLAGS /QxHost /tune:${HOST_ARCH})
+    set(HOST_FLAGS /QxHost)
   else(WIN32)
-    set(HOST_FLAGS -xHost -mtune=${HOST_ARCH})
+    set(HOST_FLAGS -xHost)
   endif()
 endif()
 
@@ -170,21 +167,43 @@ set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS})
 set(CMAKE_REQUIRED_INCLUDES)
 set(CMAKE_REQUIRED_LIBRARIES)
 
-set(_code "#include <immintrin.h>
-__m256i i;
-int main(void) {__m256i a = _mm256_abs_epi16(i); return 0;}")
-check_cxx_source_compiles("${_code}" HAS_AVX2)
+check_source_compiles(C
+[=[
+#include "immintrin.h"
 
-set(_code "#include <immintrin.h>
-int main(void) {__m256 a = _mm256_setzero_ps(); return 0;}")
-check_cxx_source_compiles("${_code}" HAS_AVX)
+int main(void) {
+  __m256i i;
+  __m256i a = _mm256_abs_epi16(i);
+  return 0;
+}
+]=]
+HAS_AVX2
+)
+
+check_source_compiles(C
+[=[
+#include "immintrin.h"
+int main(void) {
+  __m256 a = _mm256_setzero_ps();
+  return 0;
+}
+]=]
+HAS_AVX
+)
 
 if(CMAKE_C_COMPILER_ID STREQUAL GNU)
   set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS} -ftree-vectorize -mfpu=neon)
 endif()
-set(_code "#include \"arm_neon.h\"
-int main(void){float32x4_t v1 = { 1.0, 2.0, 3.0, 4.0 }; return 0;}")
-check_c_source_compiles("${_code}" HAS_NEON)
+check_source_compiles(C
+[=[
+#include "arm_neon.h"
+int main(void){
+  float32x4_t v1 = { 1.0, 2.0, 3.0, 4.0 };
+  return 0;
+}
+]=]
+HAS_NEON
+)
 if(HAS_NEON)
   if(CMAKE_C_COMPILER_ID STREQUAL GNU)
     list(APPEND HOST_FLAGS -mfpu=neon)
@@ -193,8 +212,5 @@ endif()
 
 set(HOST_ARCH ${HOST_ARCH} PARENT_SCOPE)
 set(HOST_FLAGS ${HOST_FLAGS} PARENT_SCOPE)
-set(HAS_AVX2 ${HAS_AVX2} CACHE BOOL "CPU has AVX2 instructions")
-set(HAS_AVX ${HAS_AVX} CACHE BOOL "CPU has AVX instructions")
-set(HAS_NEON ${HAS_NEON} CACHE BOOL "CPU has Neon instructions")
 
 endfunction(detect_host_arch)
