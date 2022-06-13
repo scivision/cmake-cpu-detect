@@ -150,6 +150,9 @@ endif()
 
 # --- capability check
 include(CheckSourceCompiles)
+include(CheckIncludeFile)
+
+check_include_file(immintrin.h HAS_IMM_H)
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
   set(HOST_FLAGS -march=native)
@@ -167,46 +170,54 @@ set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS})
 set(CMAKE_REQUIRED_INCLUDES)
 set(CMAKE_REQUIRED_LIBRARIES)
 
-check_source_compiles(C
-[=[
-#include "immintrin.h"
+if(HAS_IMM_H)
 
-int main(void) {
-  __m256i i;
-  __m256i a = _mm256_abs_epi16(i);
-  return 0;
-}
-]=]
-HAS_AVX2
-)
+  check_source_compiles(C
+  [=[
+  #include "immintrin.h"
 
-check_source_compiles(C
-[=[
-#include "immintrin.h"
-int main(void) {
-  __m256 a = _mm256_setzero_ps();
-  return 0;
-}
-]=]
-HAS_AVX
-)
+  int main(void) {
+    __m256i i;
+    __m256i a = _mm256_abs_epi16(i);
+    return 0;
+  }
+  ]=]
+  HAS_AVX2
+  )
 
-if(CMAKE_C_COMPILER_ID STREQUAL GNU)
-  set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS} -ftree-vectorize -mfpu=neon)
+  check_source_compiles(C
+  [=[
+  #include "immintrin.h"
+  int main(void) {
+    __m256 a = _mm256_setzero_ps();
+    return 0;
+  }
+  ]=]
+  HAS_AVX
+  )
+
 endif()
-check_source_compiles(C
-[=[
-#include "arm_neon.h"
-int main(void){
-  float32x4_t v1 = { 1.0, 2.0, 3.0, 4.0 };
-  return 0;
-}
-]=]
-HAS_NEON
-)
-if(HAS_NEON)
+
+check_include_file(arm_neon.h HAS_NEON_H)
+
+if(HAS_NEON_H)
   if(CMAKE_C_COMPILER_ID STREQUAL GNU)
-    list(APPEND HOST_FLAGS -mfpu=neon)
+    set(CMAKE_REQUIRED_FLAGS ${HOST_FLAGS} -ftree-vectorize -mfpu=neon)
+  endif()
+  check_source_compiles(C
+  [=[
+  #include "arm_neon.h"
+  int main(void){
+    float32x4_t v1 = { 1.0, 2.0, 3.0, 4.0 };
+    return 0;
+  }
+  ]=]
+  HAS_NEON
+  )
+  if(HAS_NEON)
+    if(CMAKE_C_COMPILER_ID STREQUAL GNU)
+      list(APPEND HOST_FLAGS -mfpu=neon)
+    endif()
   endif()
 endif()
 
